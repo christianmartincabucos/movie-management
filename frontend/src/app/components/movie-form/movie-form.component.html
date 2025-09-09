@@ -1,0 +1,111 @@
+<div class="container mx-auto p-4">
+  <div class="bg-white shadow rounded-lg p-6 max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">{{ isEditMode ? 'Edit Movie' : 'Add New Movie' }}</h1>
+    
+    <div *ngIf="loading" class="mb-6">
+      <div class="flex justify-center">
+        <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      <p class="text-center mt-2 text-gray-600">Loading movie data...</p>
+    </div>
+    
+    <div *ngIf="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+      {{ error }}
+    </div>
+    
+    <form [formGroup]="movieForm" (ngSubmit)="onSubmit()">
+      <div class="mb-4">
+        <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+        <input 
+          type="text" 
+          id="title" 
+          formControlName="title"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          [class.border-red-500]="movieForm.get('title')?.invalid && movieForm.get('title')?.touched"
+        >
+        <div *ngIf="movieForm.get('title')?.invalid && movieForm.get('title')?.touched" class="text-red-500 text-sm mt-1">
+          Title is required
+        </div>
+      </div>
+      
+      <div class="mb-4">
+        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <textarea 
+          id="description" 
+          formControlName="description" 
+          rows="4"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          [class.border-red-500]="movieForm.get('description')?.invalid && movieForm.get('description')?.touched"
+        ></textarea>
+        <div *ngIf="movieForm.get('description')?.invalid && movieForm.get('description')?.touched" class="text-red-500 text-sm mt-1">
+          Description is required
+        </div>
+      </div>
+      
+      <div class="mb-4">
+        <label for="date_added" class="block text-sm font-medium text-gray-700 mb-1">Date Added</label>
+        <input 
+          type="date" 
+          id="date_added" 
+          formControlName="date_added"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          [class.border-red-500]="movieForm.get('date_added')?.invalid && movieForm.get('date_added')?.touched"
+        >
+        <div *ngIf="movieForm.get('date_added')?.invalid && movieForm.get('date_added')?.touched" class="text-red-500 text-sm mt-1">
+          Date is required
+        </div>
+      </div>
+      
+      <div class="mb-6">
+        <label for="video_file" class="block text-sm font-medium text-gray-700 mb-1">Video File</label>
+        <input 
+          type="file" 
+          id="video_file" 
+          (change)="onFileChange($event)"
+          accept="video/*"
+          class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+        >
+        <div *ngIf="selectedFile" class="mt-2 text-sm text-gray-600">
+          Selected: {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
+          <span *ngIf="selectedFile.size > 10 * 1024 * 1024" class="text-blue-500">
+            (Will be uploaded in chunks)
+          </span>
+        </div>
+        <div *ngIf="fileSizeError" class="text-red-500 text-sm mt-1">
+          {{ fileSizeError }}
+        </div>
+        <div *ngIf="isEditMode && !selectedFile && !uploadedFileUuid" class="mt-2 text-sm text-gray-600">
+          Leave empty to keep the current video file
+        </div>
+      </div>
+      
+      <div *ngIf="isUploading" class="mb-6">
+        <div class="w-full bg-gray-200 rounded-full h-2.5">
+          <div class="bg-blue-600 h-2.5 rounded-full" [style.width.%]="uploadProgress"></div>
+        </div>
+        <p class="text-center mt-2 text-sm text-gray-600">
+          Uploading: {{ uploadProgress }}%
+        </p>
+        <p class="text-center text-xs text-gray-500 mt-1">
+          This may take several minutes for large videos
+        </p>
+      </div>
+      
+      <div class="flex gap-3 justify-end">
+        <a 
+          class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 inline-block text-center cursor-pointer"
+          [routerLink]="isEditMode ? ['/movies', movieId] : '/movies'"
+        >
+          Cancel
+        </a>
+        <button 
+          type="submit" 
+          class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          [disabled]="movieForm.invalid || isUploading || (!selectedFile && !isEditMode)"
+        >
+          {{ isUploading ? 'Uploading...' : isEditMode ? 'Update Movie' : 'Add Movie' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
