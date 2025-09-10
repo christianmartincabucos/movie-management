@@ -4,17 +4,16 @@
 - **Backend**: PHP, Laravel
 - **Frontend**: Angular
 - **Database**: MySQL (or any other preferred database)
-- **File Storage**: Local storage (for video files)
-- **Testing**: PHPUnit for backend, Jasmine/Karma for frontend
-- **Containerization**: Docker (optional)
+- **File Storage**: Local storage
+- **Containerization**: Docker
 
 ## Prerequisites
-- PHP >= 7.4
+- PHP >= 8.2
 - Composer
-- Node.js >= 14
+- Node.js >= 18
 - Angular CLI
 - MySQL (or any other preferred database)
-- Docker (optional)
+- Docker
 
 ## Setup Instructions
 
@@ -80,5 +79,3 @@
 2. Use the application to create, view, edit, and delete movies.
 3. Test file upload by selecting a video file during movie creation or editing.
 4. Play the uploaded video using the video player component.
-
-For a demo video, please refer to [Demo Video Link] (insert actual link here).
