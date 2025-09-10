@@ -55,7 +55,7 @@ class ProcessVideoFile implements ShouldQueue
         $video = $ffmpeg->open($videoPath);
 
         // 1. Generate thumbnail
-        $this->generateThumbnail($video);
+        $this->generateThumbnail($this->movie->id);
         
         // 2. Generate HLS playlist for adaptive streaming
         $this->generateHLS($ffmpeg, $videoPath);
@@ -70,33 +70,66 @@ class ProcessVideoFile implements ShouldQueue
     /**
      * Generate a thumbnail from the video
      */
-    protected function generateThumbnail($video): void
+    protected function generateThumbnail($id)
     {
+        $movie = Movie::findOrFail($id);
+        
+        // Skip if the movie already has a thumbnail
+        if ($movie->thumbnail) {
+            return response()->json([
+                'thumbnail' => $movie->thumbnail
+            ]);
+        }
+        
+        // Check if the video exists
+        $videoPath = storage_path('app/public/' . $movie->video_file);
+        if (!file_exists($videoPath)) {
+            Log::error("Video file not found: {$videoPath}");
+            return response()->json(['error' => 'Video file not found'], 404);
+        }
+        
         try {
-            // Extract filename without extension
-            $filename = pathinfo($this->movie->video_file, PATHINFO_FILENAME);
+            // Generate a thumbnail using FFmpeg (make sure FFmpeg is installed on your server)
+            $thumbnailFilename = 'thumbnails/' . pathinfo($movie->video_file, PATHINFO_FILENAME) . '.jpg';
+            $thumbnailPath = storage_path('app/public/' . $thumbnailFilename);
             
-            // Save thumbnail at 2 seconds mark
-            $thumbnailPath = 'thumbnails/' . $filename . '.jpg';
-            $fullPath = storage_path('app/public/' . $thumbnailPath);
-            
-            // Create directory if it doesn't exist
-            if (!file_exists(dirname($fullPath))) {
-                mkdir(dirname($fullPath), 0755, true);
+            // Create thumbnails directory if it doesn't exist
+            $thumbnailDir = dirname($thumbnailPath);
+            if (!is_dir($thumbnailDir)) {
+                mkdir($thumbnailDir, 0755, true);
             }
             
-            // Extract frame at 2 seconds and save as thumbnail
-            $video->frame(TimeCode::fromSeconds(2))
-                  ->save($fullPath);
+            $command = "ffmpeg -y -i " . escapeshellarg($videoPath) . " -ss 00:00:03 -frames:v 1 -q:v 2 " . escapeshellarg($thumbnailPath) . " 2>&1";
             
-            // Update movie with thumbnail path
-            $this->movie->thumbnail = $thumbnailPath;
-            $this->movie->save();
+            // Execute the command and capture output
+            exec($command, $output, $returnVar);
             
-            Log::info('Thumbnail generated for movie ID: ' . $this->movie->id);
+            if ($returnVar !== 0) {
+                // Try a different timestamp if the first attempt failed
+                $command = "ffmpeg -y -i " . escapeshellarg($videoPath) . " -ss 00:00:01 -frames:v 1 -q:v 2 " . escapeshellarg($thumbnailPath) . " 2>&1";
+                exec($command, $output, $returnVar);
+                
+                if ($returnVar !== 0) {
+                    return response()->json([
+                        'error' => 'Failed to generate thumbnail',
+                        'details' => implode("\n", $output)
+                    ], 500);
+                }
+            }
+            
+            // Update the movie record with the thumbnail path
+            $movie->thumbnail = $thumbnailFilename;
+            $movie->save();
+            
+            return response()->json([
+                'thumbnail' => $movie->thumbnail
+            ]);
         } catch (\Exception $e) {
-            Log::error('Thumbnail generation failed: ' . $e->getMessage());
-            throw $e;
+            Log::error("Exception generating thumbnail: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Exception while generating thumbnail', 
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
     

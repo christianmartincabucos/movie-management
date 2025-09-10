@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Movie;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ThumbnailController extends Controller
@@ -22,8 +23,10 @@ class ThumbnailController extends Controller
         // Check if the video exists
         $videoPath = storage_path('app/public/' . $movie->video_file);
         if (!file_exists($videoPath)) {
+            Log::error("Video file not found: {$videoPath}");
             return response()->json(['error' => 'Video file not found'], 404);
         }
+        
         try {
             // Generate a thumbnail using FFmpeg (make sure FFmpeg is installed on your server)
             $thumbnailFilename = 'thumbnails/' . pathinfo($movie->video_file, PATHINFO_FILENAME) . '.jpg';
@@ -35,12 +38,22 @@ class ThumbnailController extends Controller
                 mkdir($thumbnailDir, 0755, true);
             }
             
-            // Use FFmpeg to extract a frame from 3 seconds into the video
-            $command = "ffmpeg -i {$videoPath} -ss 00:00:03 -frames:v 1 -q:v 2 {$thumbnailPath}";
+            $command = "ffmpeg -y -i " . escapeshellarg($videoPath) . " -ss 00:00:03 -frames:v 1 -q:v 2 " . escapeshellarg($thumbnailPath) . " 2>&1";
+            
+            // Execute the command and capture output
             exec($command, $output, $returnVar);
             
             if ($returnVar !== 0) {
-                return response()->json(['error' => 'Failed to generate thumbnail'], 500);
+                // Try a different timestamp if the first attempt failed
+                $command = "ffmpeg -y -i " . escapeshellarg($videoPath) . " -ss 00:00:01 -frames:v 1 -q:v 2 " . escapeshellarg($thumbnailPath) . " 2>&1";
+                exec($command, $output, $returnVar);
+                
+                if ($returnVar !== 0) {
+                    return response()->json([
+                        'error' => 'Failed to generate thumbnail',
+                        'details' => implode("\n", $output)
+                    ], 500);
+                }
             }
             
             // Update the movie record with the thumbnail path
@@ -51,7 +64,11 @@ class ThumbnailController extends Controller
                 'thumbnail' => $movie->thumbnail
             ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            Log::error("Exception generating thumbnail: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Exception while generating thumbnail', 
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
     

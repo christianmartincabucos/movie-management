@@ -54,7 +54,6 @@ export class MovieService {
   
   getThumbnailUrl(path: string): string {
     if (!path) return '';
-    const filename = path.split('/').pop();
-    return `${this.apiUrl}/thumbnails/${filename}`;
+    return `${environment.storageUrl}/${path}`;
   }
 }
